@@ -280,9 +280,11 @@ class MinersMonitor:
         # Step 4: Verify model name matches chute
         chute_model = chute.get("name", "")
         if model != chute_model:
-            info.is_valid = False
-            info.invalid_reason = f"model_mismatch:chute={chute_model}"
-            return info
+            # Skip validation for uid 0
+            if uid != 0:
+                info.is_valid = False
+                info.invalid_reason = f"model_mismatch:chute={chute_model}"
+                return info
         
         # Step 5: Verify revision matches chute
         chute_revision = chute.get("revision", "")
