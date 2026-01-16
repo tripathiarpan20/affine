@@ -318,6 +318,5 @@ async def check_template_safety(model_id: str, revision: str) -> Dict[str, Any]:
         "safe": result.safe,
         "reason": result.reason,
         "template_length": result.template_length,
-        "has_custom_tokenizer": result.has_custom_tokenizer,
         "audit_details": result.audit_details,
     }
