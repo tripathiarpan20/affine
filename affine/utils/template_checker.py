@@ -189,7 +189,7 @@ class TemplateChecker:
                     model_id,
                     revision=revision,
                     token=self.hf_token,
-                    trust_remote_code=True,  # Required for custom tokenizer code
+                    trust_remote_code=False,  # Never execute remote code for security
                 )
 
             tokenizer = await asyncio.to_thread(_load_tokenizer)
