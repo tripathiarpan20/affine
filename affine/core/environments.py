@@ -62,6 +62,9 @@ class EnvConfig:
     docker_image: str
     env_type: str = "affine"
     env_vars: Dict[str, str] = field(default_factory=dict)
+    # Environment variables that must be sourced from the host process environment
+    # and forwarded into the container (e.g., credentials/endpoints).
+    required_env_vars: List[str] = field(default_factory=list)
     mem_limit: str = "10g"
     volumes: Optional[Dict[str, Dict[str, str]]] = None
     eval_params: Dict[str, Any] = field(default_factory=lambda: {
@@ -165,6 +168,32 @@ _ENV_CONFIGS_CANONICAL = {
         },
         proxy_timeout=2000,
     ),
+    # SWE-bench Synth environment (requires R2 credentials for dataset/artifact access)
+    "swe-synth": EnvConfig(
+        name="swe-synth",
+        docker_image="affinefoundation/swebench:synth",
+        env_type="swebench",
+        env_vars={"UVICORN_WORKERS": "10"},
+        required_env_vars=[
+            "R2_ENDPOINT_URL",
+            "R2_BUCKET",
+            "R2_ACCESS_KEY_ID",
+            "R2_SECRET_ACCESS_KEY",
+        ],
+        mem_limit="10g",
+        volumes={
+            "/var/run/docker.sock": {
+                "bind": "/var/run/docker.sock",
+                "mode": "rw"
+            }
+        },
+        eval_params={
+            "max_iterations": 30,
+            "temperature": 0.0,
+            "timeout": 7200,
+        },
+        proxy_timeout=7300,
+    ),
     "print": EnvConfig(
         name="print",
         docker_image="affinefoundation/cde:print",
@@ -200,6 +229,7 @@ _ENV_ALIASES = {
     
     # SWE-bench aliases
     "SWE-PRO": "swe-pro",
+    "SWE-SYNTH": "swe-synth",
     
     # Print aliases
     "PRINT": "print",
@@ -256,6 +286,15 @@ class SDKEnvironment:
             raise ValueError("CHUTES_API_KEY environment variable is required")
         
         env_vars = {"CHUTES_API_KEY": api_key}
+
+        # Forward any required host env vars into the container for this environment
+        for key in self.config.required_env_vars:
+            value = os.getenv(key)
+            if not value:
+                raise ValueError(
+                    f"{key} environment variable is required for environment '{self.env_name}'"
+                )
+            env_vars[key] = value
         
         # Add ENV_NAME for affine environments (from task_type in eval_params)
         if "task_type" in self.config.eval_params:
@@ -561,6 +600,7 @@ LGC_factory = lambda mode=None: create_environment("lgc", mode=mode)
 LGC_V2_factory = lambda mode=None: create_environment("lgc-v2", mode=mode)
 GAME_factory = lambda mode=None: create_environment("game", mode=mode)
 SWE_PRO_factory = lambda mode=None: create_environment("swe-pro", mode=mode)
+SWE_SYNTH_factory = lambda mode=None: create_environment("swe-synth", mode=mode)
 PRINT_factory = lambda mode=None: create_environment("print", mode=mode)
 
 # Legacy class aliases
@@ -577,3 +617,4 @@ PRINT = PRINT_factory
 
 # SWE-bench factories
 SWE_PRO = SWE_PRO_factory
+SWE_SYNTH = SWE_SYNTH_factory
